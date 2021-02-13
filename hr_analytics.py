@@ -8,8 +8,13 @@ from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
+from sklearn.model_selection import cross_val_score
+
 from sklearn.svm import SVC
-from sklearn.metrics import confusion_matrix, accuracy_score
+from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsClassifier
+
+from sklearn.metrics import confusion_matrix, accuracy_score, plot_roc_curve, plot_confusion_matrix
 
 # Dataset from https://www.kaggle.com/arashnic/hr-analytics-job-change-of-data-scientists?select=sample_submission.csv
 
@@ -194,12 +199,29 @@ def processing_data(data):
     return hr_processed, y
 
 
+def Model(model, X_train, X_test, y_train, y_test, title):
+    # https://scikit-learn.org/stable/modules/cross_validation.html
+    model.fit(X_train, y_train)
+    y_train_pred = model.predict(X_train)
+    y_test_pred = model.predict(X_test)
+    val_score = cross_val_score(model, X_test, y_test)
+
+    print(title + ' - training set - accuracy score: ', accuracy_score(y_train, y_train_pred))
+    print(title + ' - test set - accuracy score: ', accuracy_score(y_test, y_test_pred))
+    print(title + ' - training set - confusion matrix: \n', confusion_matrix(y_train, y_train_pred))
+    print(title + ' - test set - confusion matrix: \n', confusion_matrix(y_test, y_test_pred))
+    print(title + " - %0.2f accuracy with a standard deviation of %0.2f" % (val_score.mean(), val_score.std()))
+    plot_roc_curve(model, X_test, y_test, ax=ax, alpha=0.8)
+    cm = confusion_matrix(y_test, y_test_pred)
+    print(cm)
+    print(accuracy_score(y_test, y_test_pred))
+
+
 ###########################################
 #                                         #
 #            Visualising the data         #
 #                                         #
 ###########################################
-
 
 train_dataset = pd.read_csv('aug_train.csv')
 # test_dataset = pd.read_csv('aug_test.csv')
@@ -211,29 +233,13 @@ train_dataset = pd.read_csv('aug_train.csv')
 #       Cleaning up the data           #
 ########################################
 hr_data_processed, y_processed = processing_data(train_dataset)
-
-
 X_train, X_test, y_train, y_test = train_test_split(hr_data_processed, y_processed, test_size=0.2, shuffle=True, stratify=y_processed)
-# print(X_train)
-# print(y_train)
-# print(X_test)
-# print(y_test)
 
+ax = plt.gca()
+Model(LogisticRegression(max_iter=50000), X_train, X_test, y_train, y_test, "Logistic regression")
+Model(SVC(kernel='linear', C=1, random_state=42), X_train, X_test, y_train, y_test, "SVM model")
+Model(KNeighborsClassifier(n_neighbors=5, metric='minkowski', p=2), X_train, X_test, y_train, y_test, "K nearest neighbor")
+Model(SVC(kernel='rbf', random_state=42), X_train, X_test, y_train, y_test, "Kernel SVM")
+plt.show()
 
-classifier = SVC(kernel='rbf', random_state=0)
-classifier.fit(X_train, y_train)
-# Predicting the Test set results
-y_pred = classifier.predict(X_test)
-# print(np.concatenate((y_pred.reshape(len(y_pred), 1), y_test.reshape(len(y_test), 1)), 1))
-print(np.concatenate((y_pred.reshape(len(y_pred), 1), y_test.values.reshape(len(y_test), 1)), 1))
-
-# Making the Confusion Matrix
-cm = confusion_matrix(y_test, y_pred)
-print(cm)
-print(accuracy_score(y_test, y_pred))
-
-# test_dataset = pd.read_csv('aug_test.csv')
-# X_test = test_dataset.iloc[:, :-1].values
-# y_test = test_dataset.iloc[:, -1].values
-#
 # # Look at the data
